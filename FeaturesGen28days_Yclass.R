@@ -70,12 +70,12 @@ flth <- flth %>% dplyr::rename(BOOKING=DCP23)
 # full data frame to store the generate features
 feat_df <- NA
 
-results33lf <- data.frame(FLT_KEY=unique(flth$FLT_key), 
+results28lf <- data.frame(FLT_KEY=unique(flth$FLT_key), 
                           trainSize = rep(NA,length(unique(flth$FLT_key))))
 
 for(flt_key in unique(flth$FLT_key)){
   flt1 <- flth %>% filter(FLT_key==flt_key)
-  flt1df <- flt1 %>% dplyr::select(FLTDATE,DCP1:DCP16,BOOKING)
+  flt1df <- flt1 %>% dplyr::select(FLTDATE,DCP1:DCP9,BOOKING)
   flt1df$BOOKING <- as.numeric(flt1df$BOOKING)
   print(flt_key)
   #if the first few data is missing, na.approx will not work and we just remove them
@@ -86,7 +86,7 @@ for(flt_key in unique(flth$FLT_key)){
   if(i>1&i<nrow(flt1df)){
     flt1df <- flt1df[i:nrow(flt1df),]
   }else if(i==nrow(flt1df)){
-    results33lf$trainSize[which(results33lf$FLT_KEY==flt_key)] = 0
+    results28lf$trainSize[which(results28lf$FLT_KEY==flt_key)] = 0
     next
   }
   i <- nrow(flt1df)
@@ -121,25 +121,27 @@ for(flt_key in unique(flth$FLT_key)){
   }  
   
   if(nrow(flt1df)<150){
-    results33lf$trainSize[which(results33lf$FLT_KEY==flt_key)] = nrow(flt1df)     
+    results28lf$trainSize[which(results28lf$FLT_KEY==flt_key)] = nrow(flt1df)     
     next
   }
-  results33lf$trainSize[which(results33lf$FLT_KEY==flt_key)] = nrow(flt1df)  
+  results28lf$trainSize[which(results28lf$FLT_KEY==flt_key)] = nrow(flt1df)  
   
   #Find the most popular flight frequency per week, Do we need to consider the date instead of using lag function??
   fly_freq <- flt1df %>% group_by(year, month, wdayindex) %>% summarise(freq=n()) %>% ungroup() %>% select(freq)
   fly_freq <- sort(table(fly_freq),decreasing=TRUE)[1]
   ffreq <- as.numeric(names(fly_freq))
   flt1df$bookedlag28 <- as.numeric(dplyr::lag(flt1df$BOOKING,ffreq*4))
-  flt1df$bookedlag7 <- as.numeric(dplyr::lag(flt1df$BOOKING,ffreq))
-  flt1df$bookedlag14 <- as.numeric(dplyr::lag(flt1df$BOOKING,ffreq*2))
-  flt1df$bookedlag21 <- as.numeric(dplyr::lag(flt1df$BOOKING,ffreq*3))
+#  flt1df$bookedlag7 <- as.numeric(dplyr::lag(flt1df$BOOKING,ffreq))
+#  flt1df$bookedlag14 <- as.numeric(dplyr::lag(flt1df$BOOKING,ffreq*2))
+#  flt1df$bookedlag21 <- as.numeric(dplyr::lag(flt1df$BOOKING,ffreq*3))
   
   flt1df2 <- flt1df
-  flt1df2$D16_D23Now <- as.numeric(flt1df2$DCP16/flt1df2$bookedlag7)
-  flt1df2$D16_D9 <- flt1df2$DCP16/flt1df2$DCP9
-  D9_D16_sd <- apply(flt1df2[,c("DCP9","DCP10","DCP11","DCP12","DCP13","DCP14","DCP15","DCP16")],1,sd)
-  flt1df2$D16_D9_mom <- flt1df2$D16_D9/D9_D16_sd
+  flt1df2$D9_D23Now <- as.numeric(flt1df2$DCP9/flt1df2$bookedlag28)
+  flt1df2$D9_D6 <- ifelse(flt1df2$DCP6==0,flt1df2$DCP9,flt1df2$DCP9/flt1df2$DCP6)
+  
+  D8_D1_sd <- apply(flt1df2[,c("DCP1","DCP2","DCP3","DCP4","DCP5","DCP6","DCP7","DCP8")],1,sd)
+ # D9_D16_sd <- apply(flt1df2[,c("DCP9","DCP10","DCP11","DCP12","DCP13","DCP14","DCP15","DCP16")],1,sd)
+  flt1df2$D9_D6_mom <- flt1df2$D9_D6/D8_D1_sd
   
   weekind_min <- min(flt1df2$weekind[complete.cases(flt1df2)])
   
@@ -150,7 +152,7 @@ for(flt_key in unique(flth$FLT_key)){
   
   #below use 7 instead of 6 is to avoid the case the starting weekind is not the whole week
   lm_models <- foreach(i=(weekind_min):(weekind_max-1),.combine = 'c') %dopar%{#i is the weekind,start from 2 instead of 1 is due to bookedlag7 is NA for 1.
-    list(Model=lm(BOOKING~DCP16+bookedlag7, data=flt1df2[which(flt1df2$weekind==i),]))
+    list(Model=lm(BOOKING~DCP9+bookedlag28, data=flt1df2[which(flt1df2$weekind==i),]))
   }  
   
   #prediction based on lm
@@ -166,7 +168,7 @@ for(flt_key in unique(flth$FLT_key)){
   pad_len <- nrow(flt1df2) - length(book_pred)
   book_pred <- c(rep(NA,pad_len),book_pred)#Cover missing value and training data
   #head(book_pred,20)
-  flt1df2$booked_7days_pred <- book_pred
+  flt1df2$booked_28days_pred <- book_pred
   
   #Add prediction deviation to the original data
   pred_resid <- lapply(lm_models,residuals)
@@ -186,14 +188,15 @@ for(flt_key in unique(flth$FLT_key)){
   flt1df2 <- cbind(as.data.frame(flt1df2),wdaydummy)
   flt1df2 <- cbind(as.data.frame(flt1df2),monthdummy)
   flt1df2$BOOKING <- as.numeric(flt1df2$BOOKING)
-  flt1df2[,2:17] <- sapply(flt1df2[,2:17],as.numeric)
+  flt1df2[,2:24] <- sapply(flt1df2[,2:24],as.numeric)
   flt1df2$FLTKEY <- flt_key
   
-  if(flt_key=="1-DXB-LHR")
-  {feat_df <- flt1df2}
+  if(flt_key=="1-DXB-LHR"){
+    feat_df <- flt1df2
+  }
   else{
     feat_df <- bind_rows(feat_df, flt1df2)
   }
 }
 
-write.csv(feat_df, file="feat_7days_Y.csv",row.names = F)
+write.csv(feat_df, file="feat_28days_Y.csv",row.names = F)
