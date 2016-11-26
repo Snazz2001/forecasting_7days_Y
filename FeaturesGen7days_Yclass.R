@@ -13,7 +13,7 @@ library(dummies)
 library(parallel)
 library(foreach)
 library(doSNOW)
-
+setwd("C:/Projects/Leg forecasting/LegForecasting_7days_YClass")
 setwd("../Data/")
 
 # calendar features
