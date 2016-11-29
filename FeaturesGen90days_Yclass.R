@@ -134,11 +134,11 @@ for(flt_key in unique(flth$FLT_key)){
   
   flt1df2 <- flt1df
   flt1df2$D4_D23Now <- as.numeric(flt1df2$DCP4/flt1df2$bookedlag91)
-  flt1df2$D4_D3 <- ifelse(flt1df2$DCP3==0,flt1df2$DCP4,flt1df2$DCP4/flt1df2$DCP3)
+  flt1df2$D4_D2 <- ifelse(flt1df2$DCP2==0,flt1df2$DCP4,flt1df2$DCP4/flt1df2$DCP2)
   
-  D3_D1_sd <- apply(flt1df2[,c("DCP1","DCP2","DCP3")],1,sd)
+  D2_D4_sd <- apply(flt1df2[,c("DCP4","DCP2","DCP3")],1,sd)
   # D9_D16_sd <- apply(flt1df2[,c("DCP9","DCP10","DCP11","DCP12","DCP13","DCP14","DCP15","DCP16")],1,sd)
-  flt1df2$D4_D3_mom <- ifelse(D3_D1_sd==0,flt1df2$D4_D3,flt1df2$D4_D3/D3_D1_sd)
+  flt1df2$D4_D2_mom <- ifelse(D2_D4_sd==0,flt1df2$D4_D2,flt1df2$D4_D2/D2_D4_sd)
   
   weekind_min <- min(flt1df2$weekind[complete.cases(flt1df2)])
   
