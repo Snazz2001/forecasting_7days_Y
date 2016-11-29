@@ -136,7 +136,7 @@ for(flt_key in unique(flth$FLT_key)){
   #  flt1df$bookedlag21 <- as.numeric(dplyr::lag(flt1df$BOOKING,ffreq*3))
   
   flt1df2 <- flt1df
-  flt1df2$D8_D23Now <- as.numeric(flt1df2$DCP8/flt1df2$bookedlag28)
+  flt1df2$D8_D23Now <- as.numeric(flt1df2$DCP8/flt1df2$bookedlag35)
   flt1df2$D8_D6 <- ifelse(flt1df2$DCP6==0,flt1df2$DCP8,flt1df2$DCP8/flt1df2$DCP6)
   
   #D8_D1_sd <- apply(flt1df2[,c("DCP1","DCP2","DCP3","DCP4","DCP5","DCP6","DCP7","DCP8")],1,sd)
