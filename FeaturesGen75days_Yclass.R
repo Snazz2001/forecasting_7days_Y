@@ -141,7 +141,7 @@ for(flt_key in unique(flth$FLT_key)){
   flt1df2$D5_D23Now <- as.numeric(flt1df2$DCP5/flt1df2$bookedlag)
   flt1df2$D5_D3 <- ifelse(flt1df2$DCP3==0, flt1df2$DCP5,flt1df2$DCP5/flt1df2$DCP3)
   D3_D5_sd <- apply(flt1df2[,c("DCP3","DCP4","DCP5")],1,sd)
-  flt1df2$D5_D3_mom <- flt1df2$D5_D3/D3_D5_sd
+  flt1df2$D5_D3_mom <- ifelse(D3_D5_sd==0,flt1df2$D5_D3,flt1df2$D5_D3/D3_D5_sd)
   flt1df2 <- flt1df2 %>% filter(!is.na(DCP5),!is.na(bookedlag),!is.na(BOOKING))
   
   weekind_min <- min(flt1df2$weekind[complete.cases(flt1df2)])
