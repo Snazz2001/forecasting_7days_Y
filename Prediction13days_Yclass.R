@@ -10,12 +10,14 @@ LRO <- LRO %>% mutate(FLT_key=paste(FLTNUM,ORGN,DSTN,sep='-'))
 
 LRO$FLTDATE <- as.Date(LRO$FLTDATE)
 LRO$DCP13 <- as.numeric(LRO$DCP13)
+LRO$SYS_PRED <- LRO$DCP13
+
 
 countna <- function(x){
   sum(is.na(x))
 }
 
-gbmpred13_month <- function(flt1df2,fitgbm,m,flt_key,DoCompare=TRUE){
+gbmpred13_month <- function(flt1df2,fitgbm,m,flt_key,DoCompare=TRUE){#update
   test_start_year <- max(flt1df2$year[which(flt1df2$month==m)])
   test_month <- as.Date(paste(test_start_year,m,'1',sep = "-"))
   datatest <- flt1df2 %>% filter(year==test_start_year,month==m)
@@ -29,8 +31,8 @@ gbmpred13_month <- function(flt1df2,fitgbm,m,flt_key,DoCompare=TRUE){
   
   #  actual_pred <- actual_pred %>% left_join(lro) %>% mutate(syserr = abs(DCP4-actual)/actual) %>% select(actual,date,pred,FLT_KEY,DCP4,DCP9,DCP16,syserr)
   if(DoCompare){
-    lro <- LRO %>% filter(FLT_key==flt_key) %>% select(FLT_key,FLTDATE,DCP13,DCP9,DCP16)
-    actual_pred <- actual_pred %>% left_join(lro, by=c("date"="FLTDATE")) %>% mutate(syserr = abs(DCP13-actual)/actual) %>% select(actual,date,pred,FLT_key,DCP13,DCP9,DCP16,syserr)
+    lro <- LRO %>% filter(FLT_key==flt_key) %>% select(FLT_key,FLTDATE,SYS_PRED,DCP9,DCP16)
+    actual_pred <- actual_pred %>% left_join(lro, by=c("date"="FLTDATE")) %>% mutate(syserr = abs(SYS_PRED-actual)/actual) %>% select(actual,date,pred,FLT_key,SYS_PRED,DCP9,DCP16,syserr)
     actual_pred <- actual_pred %>% mutate(gbmerr = abs(pred-actual)/actual)
     sys_err <- with(actual_pred,median(syserr,na.rm=TRUE))
     results <- list(relerr,actual_pred,relerrsd,relerrmedian,sys_err)
@@ -41,7 +43,7 @@ gbmpred13_month <- function(flt1df2,fitgbm,m,flt_key,DoCompare=TRUE){
   return(results)
 }
 
-gbmmodel13_month <- function(flt1df2, m){
+gbmmodel13_month <- function(flt1df2, m){#update
   require(gbm)
   require(lubridate)
   if(!m %in% flt1df2$month){
@@ -66,7 +68,7 @@ gbmmodel13_month <- function(flt1df2, m){
   # feats <- c("DCP8","DCP1","bookedlag28","wday2","wday3","wday4","wday5","wday6","wday7","month2","month3","month4","month5
   #               ","month6","month7","month8","month9","month10","month11","month12","wdayindex","D8_D28Now","D8_D6","D8_D6_mom","booked_28days_pred","deviation")
   feats <- c("DCP13","DCP1","bookedlag14","bookedlag21","bookedlag28","wday2","wday3","wday4","wday5","wday6","wday7","month2","month3","month4","month5
-             ","month6","month7","month8","month9","month10","month11","month12","wdayindex","D13_D23Now","D13_D11","D13_D11_mom","booked_13days_pred","deviation")
+             ","month6","month7","month8","month9","month10","month11","month12","wdayindex","D13_D23Now","D13_D11","D13_D11_mom","booked_13days_pred","deviation")#update
   feats <- intersect(colnames(data),feats)
   fitgbm <- gbm(as.formula(paste("BOOKING~",paste(feats,collapse="+"))),data=data,distribution = 'gaussian',n.trees = 500,interaction.depth=2, shrinkage = 0.05)
   
@@ -78,35 +80,43 @@ gbmmodel13_month <- function(flt1df2, m){
 }
 
 list(relerr,actual_pred,relerrsd,relerrmedian)
-flth_data <- read.csv('feat_13days_Y.csv', header = T, stringsAsFactors = FALSE)
+flth_data <- read.csv('feat_13days_Y.csv', header = T, stringsAsFactors = FALSE)#update
 
 perf_agg <- NA
 perf_details <- NA
 
 index <- 1
-for(flt_key in unique(flth_data$FLTKEY)){
-  print(flt_key)
-  m <- 12
-  flth_df <- subset(flth_data, FLTKEY==flt_key)
-  flth_df$FLTDATE <- as.Date(flth_df$FLTDATE)
-  gbmmodel <- gbmmodel13_month(flth_df, m)
-  if(class(gbmmodel)!="numeric"){
-    results <- gbmpred13_month(flth_df,gbmmodel,m,flt_key,DoCompare=TRUE)
-    tmp <- data.frame(FLT_key=flt_key,month=m,relerr=results[[1]],relerrsd=results[[3]],relerrmedian=results[[4]])
-    if(index==1){
-      perf_agg <- tmp
-      perf_details <- results[[2]]
-    }else{
-      perf_agg <- bind_rows(perf_agg,tmp)
-      perf_details <- bind_rows(perf_details, results[[2]])
+t1 <- proc.time()
+for(m in 1:12){
+  print(m)
+  for(flt_key in unique(flth_data$FLTKEY)){
+    print(flt_key)
+    flth_df <- subset(flth_data, FLTKEY==flt_key)
+    flth_df$FLTDATE <- as.Date(flth_df$FLTDATE)
+    gbmmodel <- gbmmodel13_month(flth_df, m)#update
+    if(class(gbmmodel)!="numeric"){
+      results <- gbmpred13_month(flth_df,gbmmodel,m,flt_key,DoCompare=TRUE)#update
+      tmp <- data.frame(FLT_key=flt_key,month=m,relerr=results[[1]],relerrsd=results[[3]],relerrmedian=results[[4]])
+      if(index==1){
+        perf_agg <- data.frame(tmp,month=m)
+        perf_details <- data.frame(results[[2]],month=m)
+      }else{
+        perf_agg <- bind_rows(perf_agg,data.frame(tmp,month=m))
+        perf_details <- bind_rows(perf_details, data.frame(results[[2]],month=m))
+      }
     }
+    else{
+      print(paste(flt_key," not valid"))
+    }
+    index <- index + 1
   }
-  else{
-    print(paste(flt_key," not valid"))
-  }
-  index <- index + 1
 }
-
+t2 <- proc.time()
+print(t2-t1)
 summary.gbm(gbmmodel)
-perf_details <- perf_details %>% select(actual,date, pred, FLT_key,DCP13,syserr,gbmerr)
-with(perf_details[complete.cases(perf_details),],mean(syserr>gbmerr))
+perf_details <- perf_details %>% select(actual,date, pred, FLT_key,SYS_PRED,syserr,gbmerr)
+with(perf_details[complete.cases(perf_details),],mean(syserr>gbmerr))#win rate:0.598
+write.csv(perf_details,file="13daysYClassResult.csv",row.names = FALSE)#update
+require(tidyr)
+perf_details %>% select(syserr,gbmerr) %>% tidyr::gather(model, value, syserr:gbmerr) %>% ggplot(aes(value,color=model))+geom_density()+scale_x_log10()+ggtitle('rel error distribution for 13 days Y Class')
+head(tmp)
