@@ -165,7 +165,7 @@ for(flt_key in unique(flth$FLT_key)){
   pad_len <- nrow(flt1df2) - length(book_pred)
   book_pred <- c(rep(NA,pad_len),book_pred)#Cover missing value and training data
   #head(book_pred,20)
-  flt1df2$booked_91days_pred <- book_pred
+  flt1df2$booked_90days_pred <- book_pred
   
   #Add prediction deviation to the original data
   pred_resid <- lapply(lm_models,residuals)
