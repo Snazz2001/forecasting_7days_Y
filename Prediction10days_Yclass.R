@@ -118,5 +118,5 @@ perf_details <- perf_details %>% select(actual,date, pred, FLT_key,SYS_PRED,syse
 with(perf_details[complete.cases(perf_details),],mean(syserr>gbmerr))#win rate:0.602887
 write.csv(perf_details,file="10daysYClassResult.csv",row.names = FALSE)
 require(tidyr)
-perf_details %>% select(syserr,gbmerr) %>% tidyr::gather(model, value, syserr:gbmerr) %>% ggplot(aes(value,color=model))+geom_density()+scale_x_log10()
+perf_details %>% select(syserr,gbmerr) %>% tidyr::gather(model, value, syserr:gbmerr) %>% ggplot(aes(value,color=model))+geom_density()+scale_x_log10()+ggtitle('rel error distribution for 10 days Y Class')
 head(tmp)
